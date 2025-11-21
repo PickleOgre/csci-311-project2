@@ -1,0 +1,21 @@
+# Project-specific files
+CLAUDE.md
+
+# Compiled executable
+AirportDriver
+
+# Build artifacts
+*.o
+*.out
+*.diff
+
+# Editor and IDE files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
