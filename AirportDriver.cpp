@@ -4,7 +4,6 @@
 // Semester: Fall 2025
 
 #include <iostream>
-#include <memory>
 #include <optional>
 #include <ostream>
 #include <sstream>
@@ -30,7 +29,7 @@ struct Aircraft {
   string stats();
 
   // Returns true if this aircraft comes before a
-  bool comesBefore(Aircraft a);
+  bool comesBefore(const Aircraft &a);
 };
 
 class PriorityQueue {
@@ -49,13 +48,13 @@ public:
   // Queue functions
   bool empty();
   size_t size();
-  void push(Aircraft a);
-  Aircraft pop();
-  Aircraft peek();
+  void push(const Aircraft &a);
+  std::optional<Aircraft> pop();
+  std::optional<Aircraft> peek();
 
   // Constructor
   PriorityQueue(vector<Aircraft> queue_val = {}) {
-    if (queue.size() > 0) { // if initialized with an existing array, construct
+    if (!queue_val.empty()) {
       for (Aircraft a : queue_val) {
         push(a);
       }
@@ -69,7 +68,7 @@ string Aircraft::stats() {
   return ss.str();
 }
 
-bool Aircraft::comesBefore(Aircraft a) {
+bool Aircraft::comesBefore(const Aircraft &a) {
   // Compare by priority
   if (priority < a.priority)
     return true;
@@ -137,7 +136,7 @@ bool PriorityQueue::empty() { return queue.empty(); }
 size_t PriorityQueue::size() { return queue.size(); }
 
 // push() adds an element to the priority queue
-void PriorityQueue::push(Aircraft a) {
+void PriorityQueue::push(const Aircraft &a) {
   // Insert at the end of the heap
   queue.push_back(a);
 
@@ -146,7 +145,10 @@ void PriorityQueue::push(Aircraft a) {
 }
 
 // pop() removes and returns the highest priority element in the queue
-Aircraft PriorityQueue::pop() {
+std::optional<Aircraft> PriorityQueue::pop() {
+  if (empty()) {
+    return std::nullopt;
+  }
   // Get the aircraft from root
   Aircraft root = queue[0];
 
@@ -165,7 +167,12 @@ Aircraft PriorityQueue::pop() {
 }
 
 // returns the highest-priority element in the queue without deleting int
-Aircraft PriorityQueue::peek() { return queue[0]; }
+std::optional<Aircraft> PriorityQueue::peek() {
+  if (empty()) {
+    return std::nullopt;
+  }
+  return queue[0];
+}
 
 /* # Simulation Functions */
 int main() {
@@ -189,59 +196,52 @@ int main() {
     all_aircraft.push_back(new_aircraft);
   }
 
-  // Debug
-  // for (Aircraft a : all_aircraft)
-  //  std::cout << "All Aircraft: " << a.stats() << std::endl;
-
   // Begin simulation
   unsigned int t = 0; // Start at time step 0
   std::optional<Aircraft> runway_A;
   std::optional<Aircraft> runway_B;
   while (!all_aircraft.empty() || !pq_arrivals.empty() ||
          !pq_departures.empty()) {
-    // if there is nothing to be done for this time step, continue
-    if (pq_departures.empty() && pq_arrivals.empty()) {
-      bool new_aircraft_entering = false;
-      for (Aircraft a : all_aircraft) {
-        if (a.sim_time == t) {
-          new_aircraft_entering = true;
-          break;
+    // Add aircraft with sim_time t to a vector entering_aircraft
+    std::vector<Aircraft> entering_aircraft;
+    if (!all_aircraft.empty()) {
+      size_t i = 0;
+      while (i < all_aircraft.size()) {
+        if (all_aircraft[i].sim_time == t) {
+          entering_aircraft.push_back(all_aircraft[i]);
+          all_aircraft.erase(all_aircraft.begin() + i);
+          continue;
         }
-      }
-      if (!new_aircraft_entering) {
-        t++;
-        continue;
+        i++;
       }
     }
 
+    // If nothing needs to be done, increment time and do nothing.
+    if (pq_departures.empty() && pq_arrivals.empty() &&
+        entering_aircraft.empty()) {
+      t++;
+      continue;
+    }
+
+    // Print time
     std::cout << "Time step " << t << std::endl;
 
-    // Check for Aircraft in the vector with sim_time == t and push to queue
+    // Push aircrafts from entering_aircraft to queues
     std::cout << "\tEntering simulation" << std::endl;
-    size_t a = 0;
-    while (a < all_aircraft.size()) {
-      if (all_aircraft[a].sim_time == t) {
-        std::cout << "\t\t" << all_aircraft[a].stats() << std::endl;
+    size_t i = 0;
+    while (i < entering_aircraft.size()) {
+      std::cout << "\t\t" << entering_aircraft[i].stats() << std::endl;
 
-        // Allocate to a queue
-        if (all_aircraft[a].heading == "departing") {
-          pq_departures.push(all_aircraft[a]);
-        } else {
-          pq_arrivals.push(all_aircraft[a]);
-        }
-
-        // Remove from all_aircraft
-        all_aircraft.erase(all_aircraft.begin() + a);
-        continue;
+      // Allocate to a queue
+      if (entering_aircraft[i].heading == "departing") {
+        pq_departures.push(entering_aircraft[i]);
+      } else {
+        pq_arrivals.push(entering_aircraft[i]);
       }
-      a++;
-    }
 
-    // Debug
-    // std::cout << "\tQueue: " << std::endl;
-    // for (Aircraft a : pq.queue) {
-    //   std::cout << "\t\t" << a.stats() << std::endl;
-    // }
+      // Remove from all_aircraft
+      entering_aircraft.erase(entering_aircraft.begin() + i);
+    }
 
     // Clear runways
     if (runway_A)
@@ -274,19 +274,6 @@ int main() {
     if (runway_B)
       std::cout << "\t\t" << runway_B->stats() << std::endl;
 
-    /*
-        // Clear runways and put new aircraft in them
-        for (size_t r = 0; r < NUM_RUNWAYS; r++) {
-          if (pq.size() > 0) {
-            std::cout << "\tRunway " << (char)('A' + (r % 26)) << std::endl;
-            runways[r] = pq.pop();
-            std::cout << "\t\t" << runways[r].stats() << std::endl;
-          }
-        }
-    */
-    // Increment time step
     t++;
   }
-  // Debug:
-  // std::cout << "Done!" << std::endl;
 }
